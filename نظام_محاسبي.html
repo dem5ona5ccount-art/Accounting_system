@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إمبراطورية المحاسبة الذكية v3.0</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        :root { --primary: #4338ca; --secondary: #0ea5e9; }
+        body { background: #f8fafc; font-family: 'Segoe UI', sans-serif; }
+        .dashboard-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
+        .dashboard-card:hover { transform: translateY(-5px); box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1); }
+        .sidebar-input { background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; }
+        @media print { .no-print { display: none !important; } .print-only { display: block !important; } }
+    </style>
+</head>
+<body>
+
+<div class="flex flex-col md:flex-row min-h-screen">
+    <aside class="w-full md:w-80 bg-white border-l p-6 no-print">
+        <div class="mb-8">
+            <h2 class="text-2xl font-black text-indigo-700 flex items-center gap-2">
+                <i class="bi bi-cpu-fill"></i> SMART ACC
+            </h2>
+            <p class="text-slate-400 text-xs mt-1">نظام الإدارة المالية المتكامل</p>
+        </div>
+
+        <div class="space-y-4">
+            <h6 class="text-xs font-bold text-slate-500 uppercase">إدخال بيانات سريع</h6>
+            <input type="text" id="accountName" class="form-control sidebar-input" placeholder="اسم العميل / المورد">
+            <input type="text" id="desc" class="form-control sidebar-input" placeholder="بيان العملية">
+            
+            <select id="cat" class="form-select sidebar-input">
+                <optgroup label="عمليات نقدية">
+                    <option value="revenue">إيراد مبيعات (+)</option>
+                    <option value="expense">مصروف تشغيلي (-)</option>
+                </optgroup>
+                <optgroup label="عمليات آجلة (ديون)">
+                    <option value="debt_in">دين لنا (على عميل)</option>
+                    <option value="debt_out">دين علينا (لمورد)</option>
+                </optgroup>
+                <optgroup label="تمويل">
+                    <option value="capital">رأس مال / استثمار</option>
+                    <option value="withdraw">مسحوبات شخصية</option>
+                </optgroup>
+            </select>
+
+            <div class="input-group">
+                <span class="input-group-text bg-white border-l-0">د.ل</span>
+                <input type="number" id="amt" class="form-control sidebar-input border-r-0 text-lg font-bold" placeholder="0.00">
+            </div>
+
+            <button onclick="save()" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all">
+                <i class="bi bi-shield-check"></i> ترحيل العملية
+            </button>
+        </div>
+
+        <div class="mt-10 p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
+            <h6 class="text-xs font-bold text-indigo-700 mb-2">تصدير التقارير</h6>
+            <div class="flex gap-2">
+                <button onclick="exportCSV()" class="btn btn-sm btn-white bg-white w-full border shadow-sm">CSV</button>
+                <button onclick="window.print()" class="btn btn-sm btn-white bg-white w-full border shadow-sm">PDF</button>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 p-6 md:p-10 overflow-y-auto">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+            <div class="dashboard-card bg-white p-6 rounded-3xl border-b-4 border-indigo-500 shadow-sm">
+                <p class="text-slate-400 text-xs font-bold">السيولة النقدية</p>
+                <h2 id="statCash" class="text-2xl font-black mt-2">0</h2>
+                <div class="text-[10px] text-indigo-500 mt-2"><i class="bi bi-graph-up"></i> متوازن</div>
+            </div>
+            <div class="dashboard-card bg-white p-6 rounded-3xl border-b-4 border-emerald-500 shadow-sm">
+                <p class="text-slate-400 text-xs font-bold">صافي الربح</p>
+                <h2 id="statProfit" class="text-2xl font-black text-emerald-600 mt-2">0</h2>
+            </div>
+            <div class="dashboard-card bg-white p-6 rounded-3xl border-b-4 border-amber-500 shadow-sm">
+                <p class="text-slate-400 text-xs font-bold">إجمالي المديونيات</p>
+                <h2 id="statDebts" class="text-2xl font-black text-amber-600 mt-2">0</h2>
+            </div>
+            <div class="dashboard-card bg-white p-6 rounded-3xl border-b-4 border-rose-500 shadow-sm">
+                <p class="text-slate-400 text-xs font-bold">المصروفات الشهرية</p>
+                <h2 id="statExp" class="text-2xl font-black text-rose-600 mt-2">0</h2>
+            </div>
+        </div>
+
+        <div class="row g-6 mb-10">
+            <div class="col-lg-8">
+                <div class="bg-white p-6 rounded-3xl shadow-sm h-full">
+                    <div class="flex justify-between items-center mb-6">
+                        <h5 class="font-bold">كشف العمليات التاريخي</h5>
+                        <input type="text" id="search" onkeyup="render()" class="form-control form-control-sm w-48 border-0 bg-slate-100 rounded-lg" placeholder="بحث باسم العميل...">
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-borderless align-middle">
+                            <thead class="text-slate-400 text-[10px] uppercase border-b">
+                                <tr>
+                                    <th>التاريخ</th><th>الطرف الثاني</th><th>البيان</th><th>الحالة</th><th>مدين</th><th>دائن</th><th class="no-print"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="mainTbody" class="text-sm font-medium"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 text-center">
+                <div class="bg-white p-6 rounded-3xl shadow-sm h-full">
+                    <h5 class="font-bold mb-4">توزيع التدفق المالي</h5>
+                    <canvas id="financeChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+    let entries = JSON.parse(localStorage.getItem('ultimate_acc_db')) || [];
+    let chart;
+
+    function save() {
+        const acc = document.getElementById('accountName').value || 'عام';
+        const desc = document.getElementById('desc').value;
+        const cat = document.getElementById('cat').value;
+        const amt = parseFloat(document.getElementById('amt').value);
+
+        if(!desc || isNaN(amt)) return alert("يرجى ملء كافة الحقول الأساسية");
+
+        entries.unshift({
+            id: Date.now(),
+            date: new Date().toLocaleDateString('ar-EG'),
+            acc, desc, cat, amt
+        });
+
+        localStorage.setItem('ultimate_acc_db', JSON.stringify(entries));
+        render();
+        
+        // Reset
+        ['accountName', 'desc', 'amt'].forEach(id => document.getElementById(id).value = '');
+    }
+
+    function render() {
+        const tbody = document.getElementById('mainTbody');
+        const query = document.getElementById('search').value.toLowerCase();
+        tbody.innerHTML = '';
+        
+        let cash = 0, rev = 0, exp = 0, debts = 0;
+
+        entries.filter(e => e.acc.toLowerCase().includes(query)).forEach(e => {
+            // Financial Logic
+            if(['revenue', 'capital'].includes(e.cat)) cash += e.amt;
+            if(['expense', 'withdraw'].includes(e.cat)) cash -= e.amt;
+            if(e.cat === 'revenue') rev += e.amt;
+            if(e.cat === 'expense') exp += e.amt;
+            if(e.cat === 'debt_in') debts += e.amt;
+            if(e.cat === 'debt_out') debts -= e.amt;
+
+            const isPlus = ['revenue', 'capital', 'debt_in'].includes(e.cat);
+            
+            tbody.innerHTML += `
+                <tr class="border-b border-slate-50">
+                    <td class="text-slate-400 text-[10px]">${e.date}</td>
+                    <td><span class="text-indigo-600 font-bold">${e.acc}</span></td>
+                    <td class="text-slate-600">${e.desc}</td>
+                    <td><span class="px-2 py-1 rounded-lg text-[9px] font-black uppercase ${getBadge(e.cat)}">${getCatName(e.cat)}</span></td>
+                    <td class="text-emerald-600 font-bold">${isPlus ? e.amt.toLocaleString() : '-'}</td>
+                    <td class="text-rose-500 font-bold">${!isPlus ? e.amt.toLocaleString() : '-'}</td>
+                    <td class="no-print"><button onclick="remove(${e.id})" class="text-slate-300 hover:text-rose-500 transition"><i class="bi bi-trash-fill"></i></button></td>
+                </tr>
+            `;
+        });
+
+        updateStats(cash, rev, exp, debts);
+    }
+
+    function updateStats(cash, rev, exp, debts) {
+        document.getElementById('statCash').innerText = cash.toLocaleString() + 'د.ل';
+        document.getElementById('statProfit').innerText = (rev - exp).toLocaleString() + 'د.ل';
+        document.getElementById('statDebts').innerText = debts.toLocaleString() + 'د.ل';
+        document.getElementById('statExp').innerText = exp.toLocaleString() + 'د.ل'; 
+        updateChart(rev, exp, Math.abs(debts));
+    }
+
+    function updateChart(r, e, d) {
+        const ctx = document.getElementById('financeChart').getContext('2d');
+        if(chart) chart.destroy();
+        chart = new Chart(ctx, {
+            type: 'polarArea',
+            data: {
+                labels: ['إيرادات', 'مصاريف', 'مديونيات'],
+                datasets: [{ data: [r, e, d], backgroundColor: ['#10b981', '#f43f5e', '#f59e0b'] }]
+            },
+            options: { plugins: { legend: { display: false } } }
+        });
+    }
+
+    function getBadge(cat) {
+        const styles = { revenue:'bg-emerald-100 text-emerald-600', expense:'bg-rose-100 text-rose-600', debt_in:'bg-amber-100 text-amber-600', debt_out:'bg-indigo-100 text-indigo-600', capital:'bg-slate-100 text-slate-600', withdraw:'bg-orange-100 text-orange-600' };
+        return styles[cat];
+    }
+
+    function getCatName(cat) {
+        const names = { revenue:'مبيعات', expense:'مصروف', debt_in:'دين لنا', debt_out:'دين علينا', capital:'رأس مال', withdraw:'سحوبات' };
+        return names[cat];
+    }
+
+    function remove(id) { if(confirm('تأكيد الحذف؟')) { entries = entries.filter(e => e.id !== id); localStorage.setItem('ultimate_acc_db', JSON.stringify(entries)); render(); } }
+
+    function exportCSV() {
+        let csv = "Date,Account,Description,Type,Amount\n";
+        entries.forEach(e => csv += `${e.date},${e.acc},${e.desc},${e.cat},${e.amt}\n`);
+        const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "Accounting_Report.csv";
+        link.click();
+    }
+
+    render();
+</script>
+</body>
+</html>
